@@ -105,6 +105,7 @@ import {
   PluginPlayerDeathItemDropEvent,
   PluginPlayerDeathDropsEvent,
   PluginPlayerDeathEvent,
+  PluginProjectileLaunchedEvent,
   PluginPlayerBeforeDeathEvent,
   PluginPlayerOptionEvent,
   PluginPlayerDealtDamageEvent,
@@ -357,6 +358,7 @@ export class PluginManager {
   private static specialAttackDisabledHooks: PluginHook<PluginSpecialAttackDisabledEvent>[] = [];
   private static canUnequipHooks: PluginHook<PluginCanUnequipEvent>[] = [];
   private static playerDeathHooks: PluginHook<PluginPlayerDeathEvent>[] = [];
+  private static projectileLaunchedHooks: PluginHook<PluginProjectileLaunchedEvent>[] = [];
   private static playerOptionHooks: PluginHook<PluginPlayerOptionEvent>[] = [];
   private static playerDealtDamageHooks: PluginHook<PluginPlayerDealtDamageEvent>[] = [];
   private static combatHitPrepareHooks: PluginHook<PluginCombatHitPrepareEvent>[] = [];
@@ -1732,6 +1734,20 @@ export class PluginManager {
       PluginManager.executeHook(hook, event, "player_death", "player_death");
     }
     return event.handled === true;
+  }
+
+  /** True when some plugin observes projectiles, so senders can skip building the event. */
+  public static hasProjectileLaunchedHooks(): boolean {
+    return PluginManager.projectileLaunchedHooks.length > 0;
+  }
+
+  public static emitProjectileLaunched(event: PluginProjectileLaunchedEvent): void {
+    if (!event) {
+      return;
+    }
+    for (const hook of PluginManager.projectileLaunchedHooks) {
+      PluginManager.executeHook(hook, event, "projectile_launched", "projectile_launched");
+    }
   }
 
   public static emitPlayerOption(event: PluginPlayerOptionEvent): boolean {
@@ -3894,6 +3910,15 @@ export class PluginManager {
             }
             handler(event);
           },
+        });
+      },
+      onProjectileLaunched: (handler) => {
+        if (typeof handler !== "function") {
+          return;
+        }
+        PluginManager.projectileLaunchedHooks.push({
+          ...hookProfile(handler),
+          handler: (event) => handler(event),
         });
       },
       onPlayerBeforeDeath: (handler) => {

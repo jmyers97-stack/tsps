@@ -9,6 +9,12 @@ module.exports = {
   name: "TombsOfAmascut",
   description: "Adds the Tombs of Amascut raid: the Jaltevas lobby and party board, the Nexus, four paths with their puzzles and bosses, the Wardens and rewards.",
   members: true,
+  config: {
+    "TombsOfAmascut:bot": {
+      type: "json", label: "Raid bot settings", defaultText: "Entry mode, the Path of Crondis, a ranged set, one raid",
+      help: "Settings for bots spawned with ::toabot: invocations, pathOrder, gear (equipment and inventory by item name), statLevel, prayer (mode hold or flick, offensive), eatBelow, restorePrayerBelow and stop (maxRaids, maxDeaths, maxMinutes, onPurple, whenOutOfSupplies).",
+    },
+  },
   register(api) {
     require("./toa/Lobby.TombsOfAmascut")(api);
     require("./toa/Retrieval.TombsOfAmascut")(api);
@@ -30,5 +36,6 @@ module.exports = {
     require("./toa/Summary.TombsOfAmascut")(api);
     require("./toa/Items.TombsOfAmascut")(api);
     require("./toa/Commands.TombsOfAmascut")(api);
+    require("./toa/Bot.TombsOfAmascut")(api);
   },
 };

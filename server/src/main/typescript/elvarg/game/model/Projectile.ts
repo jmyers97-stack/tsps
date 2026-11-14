@@ -245,10 +245,32 @@ export class Projectile {
                     this.sourceIndex || null
                 );
         });
+        this.notifyObservers(timing.startCycleOffset, timing.endCycleOffset);
         if (process.env.PROJECTILE_DEBUG === "1") {
             console.log(
                 `[projectile.send] id=${this.projectileId} recipients=${recipients} scanned=${scannedNetworkPlayers} skippedArea=${skippedArea} skippedView=${skippedView} skippedTargetView=${skippedTargetView} start=(${this.start.getX()},${this.start.getY()},${this.start.getZ?.() ?? 0}) end=(${this.end.getX()},${this.end.getY()},${this.end.getZ?.() ?? 0})`
             );
         }
+    }
+
+    /** Tells observing plugins (onProjectileLaunched) about this launch; nothing when none listen. */
+    private notifyObservers(startCycleOffset: number, endCycleOffset: number): void {
+        const { PluginManager } = require("../../plugins/PluginManager");
+        if (!PluginManager.hasProjectileLaunchedHooks()) {
+            return;
+        }
+        const tile = (at: Location) => ({ x: at.getX(), y: at.getY(), z: at.getZ?.() ?? 0 });
+        const launchCycle = World.getProcessCycle();
+        PluginManager.emitProjectileLaunched({
+            projectileId: this.projectileId,
+            start: tile(this.start),
+            end: tile(this.end),
+            target: this.lockon ?? null,
+            privateArea: this.privateArea ?? null,
+            launchCycle,
+            startCycleOffset,
+            endCycleOffset,
+            landingCycle: launchCycle + Projectile.ticksToLand(endCycleOffset),
+        });
     }
 }

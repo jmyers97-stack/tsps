@@ -22,6 +22,7 @@ The whole raid, from the Jaltevas pyramid lobby to Osmumten's burial chamber. It
 | `Rewards.*`, `Loot.TombsOfAmascut.js` | The burial chamber, loot rolls, the loot interface (771) and the lobby retrieval chest. |
 | `Summary.*` | The burial chamber's scoreboard: this raid's summary (`toa_raid_summary`, 482). |
 | `Items.*` | Masori fortifying, Armadyl to Armadylean plates, Elidinis' ward (f), Thread of Elidinis and keris jewels. |
+| `Bot.*`, `Bot*.TombsOfAmascut.js` | The raid bot (`::toabot`): see [Raid bot](#raid-bot). |
 
 Tumeken's shadow is a weapon used everywhere, so it lives in `plugins/items/TumekensShadow.plugin.js` ([tumekens-shadow.md](tumekens-shadow.md)). The raid only answers its `toa:in-tombs` question (`Raid.*`), for the passive's ×4.
 
@@ -197,6 +198,72 @@ The first version was written without access to the Wiki or the cache, so it fol
 - **Impact graphics:** a few use generic graphics where the cache has dedicated ToA ones. Zebak's are settled: OpenRune's capture-based volley also lands with `FIREBLAST_IMPACT` / `DARKBOW_SMOKE_ARROW_IMPACT`, and `ZEBAK_MAGE_SPLIT` / `ZEBAK_RANGED_SPLIT` are the bursts.
 - **Sound ids:** RuneLite has no names for them.
 - **Unnamed cache entries:** these keep their numeric constants: Warden charging orb 11769, hidden Warden 11765, departing spirit 11829, blade objects 45748/45749, platform 45606, siphon block 26209.
+
+## Raid bot
+
+`::toabot` (Developer-only) spawns a bot at the lobby that makes its own party, enters and plays
+the raid the way a player's client lets them: it clicks the same objects, NPCs and chatbox
+options, sees only what a client is shown (NPCs, locs, projectiles, its own stats and
+messages), and works out the bosses' attacks from their animations and projectiles. It never
+reads a room's private state. `::toabot status` says what your bots are doing and `::toabot
+stop` logs them out. `::toabot 3` plays three raids; `::toabot crondis` sets the path order.
+
+Phase 1 plays the Path of Crondis (the puzzle and Zebak), solo, and leaves through the Nexus
+once its paths are done, since the Wardens need all four. Other paths in the config are skipped
+with a note until their modules exist.
+
+| File | What it owns |
+| --- | --- |
+| `Bot.TombsOfAmascut.js` | The command, spawning (stats and gear), the per-tick task, and the bot: lobby, Nexus, proceed, return and leave, eating and prayer potions, answering dialogues. |
+| `BotConfig.TombsOfAmascut.js` | Settings (`pluginConfig["TombsOfAmascut:bot"]`), checked over defaults. |
+| `BotStateMachine.TombsOfAmascut.js` | What to do, decided afresh each tick from what the bot sees: LOBBY, NEXUS, PUZZLE, PROCEED, BOSS, RETURN, WARDENS, LOOT, DEAD, LEAVE, STOPPED. Pure. |
+| `BotSenses.TombsOfAmascut.js` | What a client would show: room NPCs and locs, map locs, ground items, projectiles (from the `onProjectileLaunched` hook), the bot's own state. |
+| `BotBody.TombsOfAmascut.js` | Acting through the click paths: walking, loc and NPC options, picking up, eating and drinking, prayers, attacking, the chatbox. |
+| `BotPlanner.TombsOfAmascut.js` | Routes over tiles and ticks together: no tile the bot ends a tick on may be dangerous on the room's next tick. Pure. |
+| `BotCrondis.TombsOfAmascut.js` | The palm puzzle: spear beats, acid trails from the orbs it sees, which waterfall is quickest there and back, crocodiles. |
+| `BotZebak.TombsOfAmascut.js` | Zebak: protection by the volley's projectile (hold or flick), out of bite reach, off acid, through the waves' gaps, sheltering behind boulders for the roar. |
+
+Settings, all optional (world.json or world.local.json):
+
+```json
+"pluginConfig": {
+  "TombsOfAmascut:bot": {
+    "invocations": ["PATHSEEKER", "WALK_FOR_IT"],
+    "pathOrder": ["CRONDIS"],
+    "gear": {
+      "equipment": ["Coif", "Black d'hide body", "Rune crossbow", { "name": "Runite bolts", "amount": 1000 }],
+      "inventory": [{ "name": "Prayer potion(4)", "amount": 6 }, { "name": "Shark", "amount": 18 }]
+    },
+    "statLevel": 99,
+    "prayer": { "mode": "hold", "offensive": true },
+    "eatBelow": 0.55,
+    "restorePrayerBelow": 25,
+    "stop": { "maxRaids": 1, "maxDeaths": 3, "maxMinutes": 120, "onPurple": true, "whenOutOfSupplies": true }
+  }
+}
+```
+
+Items are named as the cache spells them. `prayer.mode` is `hold` (keep the right protection
+up) or `flick` (up for the tick before a hit and the tick of it). A stop condition never
+abandons a started challenge: the bot finishes it, then leaves.
+
+**Ticking.** A room ticks from its occupants' processing, and an unwatched bot processes only
+every few ticks; NPCs in regions no client watches aren't processed either. So while bots exist,
+one task ticks the raids that hold bots first, keeps their room's busy NPCs awake, and then lets
+each bot think. The bot sees the room as it stands this tick, and the tile it walks to is the
+one the room checks next tick.
+
+**Tests.** `tests/toa-raid-bot.test.cjs` covers the config, the state machine, the planner and
+both solvers. `tests/toa-raid-bot-native.test.cjs` loads the server, types `::toabot` and lets
+the bot play a whole raid: it must grow the palm without a trap catching it and kill Zebak,
+then stop. Probes stand on every corridor tile meanwhile, and on each tick the tiles the bot's
+model says are caught must be exactly the ones the room catches.
+
+**Found while building it.** In the north-west corridor each pair of rows is out for three ticks
+and the next pair north fires two ticks later, so the danger sweeps north a tile a tick with no
+gap. Going north is easy, but there is no way south through it, even running. The bot picks the
+waterfall whose round trip is quickest, which avoids it. It may be worth checking those beats
+against a capture.
 
 ## Verification
 
