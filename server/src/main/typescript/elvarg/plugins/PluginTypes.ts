@@ -541,6 +541,27 @@ export interface PluginPlayerDeathEvent {
   handled: boolean;
 }
 
+/**
+ * A projectile has just been launched (`Projectile.sendProjectile`), whoever can see it. Lets
+ * server-side observers, such as bots, which receive no packets, see what a client is shown.
+ * Tiles are plain `{ x, y, z }`; cycles are client cycles (30 a tick) from the launch tick.
+ */
+export interface PluginProjectileLaunchedEvent {
+  projectileId: number;
+  start: { x: number; y: number; z: number };
+  end: { x: number; y: number; z: number };
+  /** The mobile it homes on, or null for a tile shot. */
+  target: any;
+  /** The instance it was sent in, or null for the open world. */
+  privateArea: any;
+  /** World.getProcessCycle() when it was sent. */
+  launchCycle: number;
+  startCycleOffset: number;
+  endCycleOffset: number;
+  /** The process cycle it lands on: launchCycle + ceil(endCycleOffset / 30), at least one tick on. */
+  landingCycle: number;
+}
+
 /** Fired before a player enters the death task. Set preventDeath to keep them alive (Tutorial Island). */
 export interface PluginPlayerBeforeDeathEvent {
   player: any;
@@ -1142,6 +1163,8 @@ export interface PluginApi {
   onSpecialAttackDisabled(handler: (event: PluginSpecialAttackDisabledEvent) => void): void;
   onCanUnequip(handler: (event: PluginCanUnequipEvent) => void): void;
   onPlayerDeath(handler: (event: PluginPlayerDeathEvent) => void): void;
+  /** Every projectile sent, as it is sent (PluginProjectileLaunchedEvent). Observe only. */
+  onProjectileLaunched(handler: (event: PluginProjectileLaunchedEvent) => void): void;
   onPlayerBeforeDeath(handler: (event: PluginPlayerBeforeDeathEvent) => void): void;
   onPlayerOption(handler: (event: PluginPlayerOptionEvent) => void): void;
   onPlayerDealtDamage(
